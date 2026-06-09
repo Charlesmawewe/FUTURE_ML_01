@@ -4,15 +4,32 @@ import plotly.express as px
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-# PAGE SETUP 
-st.set_page_config(page_title="Superstore Dashboard", layout="wide")
+# PAGE CONFIG
 
-# LOAD DATA 
+st.set_page_config(
+    page_title="Superstore Dashboard",
+    layout="wide"
+)
+
+# Hide Streamlit menu/footer
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility:hidden;}
+footer {visibility:hidden;}
+header {visibility:hidden;}
+</style>
+"""
+
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# LOAD DATA
+
 df = pd.read_csv("superstore_clean.csv")
 df["Order Date"] = pd.to_datetime(df["Order Date"])
 
-# SIDEBAR FILTERS 
-st.sidebar.header("Filters")
+# SIDEBAR FILTERS
+
+st.sidebar.title("Dashboard Filters")
 
 region = st.sidebar.multiselect(
     "Region",
@@ -33,124 +50,246 @@ segment = st.sidebar.multiselect(
 )
 
 df = df[
-    (df["Region"].isin(region)) &
-    (df["Category"].isin(category)) &
-    (df["Segment"].isin(segment))
+    (df["Region"].isin(region))
+    & (df["Category"].isin(category))
+    & (df["Segment"].isin(segment))
 ]
 
-#  KPI CALCULATIONS 
+# KPI CALCULATIONS
+
 total_sales = df["Sales"].sum()
 total_profit = df["Profit"].sum()
 total_orders = df["Order ID"].nunique()
 total_customers = df["Customer ID"].nunique()
 
-# Header
-st.title(" Superstore Sales Dashboard")
+# TITLE
 
-# KPI ROW 
+st.markdown(
+    """
+    <h1 style='text-align:center;'>
+     Superstore Sales Dashboard
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
+st.divider()
+
+# KPI ROW
+
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("Total Sales", f"${total_sales:,.0f}")
-col2.metric("Total Profit", f"${total_profit:,.0f}")
-col3.metric("Orders", total_orders)
-col4.metric("Customers", total_customers)
+col1.metric(" Total Sales", f"${total_sales:,.0f}")
+col2.metric(" Total Profit", f"${total_profit:,.0f}")
+col3.metric(" Orders", total_orders)
+col4.metric(" Customers", total_customers)
 
 st.divider()
 
-# ROW 1: TREND + CATEGORY 
+# ROW 1
+
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Monthly Sales Trend")
 
-    monthly = df.groupby(df["Order Date"].dt.to_period("M"))["Sales"].sum().reset_index()
+    monthly = (
+        df.groupby(df["Order Date"].dt.to_period("M"))["Sales"]
+        .sum()
+        .reset_index()
+    )
+
     monthly["Order Date"] = monthly["Order Date"].astype(str)
 
-    fig = px.line(monthly, x="Order Date", y="Sales")
+    fig = px.line(
+        monthly,
+        x="Order Date",
+        y="Sales"
+    )
+
+    fig.update_layout(height=250)
+
     st.plotly_chart(fig, use_container_width=True)
 
 with col2:
     st.subheader("Profit by Category")
 
-    cat = df.groupby("Category")["Profit"].sum().reset_index()
+    cat = (
+        df.groupby("Category")["Profit"]
+        .sum()
+        .reset_index()
+    )
 
-    fig = px.bar(cat, x="Category", y="Profit")
+    fig = px.bar(
+        cat,
+        x="Category",
+        y="Profit"
+    )
+
+    fig.update_layout(height=250)
+
     st.plotly_chart(fig, use_container_width=True)
 
-# ROW 2: REGION + SEGMENT
+# ROW 2
+
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Sales by Region")
 
-    reg = df.groupby("Region")["Sales"].sum().reset_index()
+    reg = (
+        df.groupby("Region")["Sales"]
+        .sum()
+        .reset_index()
+    )
 
-    fig = px.pie(reg, names="Region", values="Sales", hole=0.4)
+    fig = px.pie(
+        reg,
+        names="Region",
+        values="Sales",
+        hole=0.4
+    )
+
+    fig.update_layout(height=250)
+
     st.plotly_chart(fig, use_container_width=True)
 
 with col2:
     st.subheader("Sales by Segment")
 
-    seg = df.groupby("Segment")["Sales"].sum().reset_index()
+    seg = (
+        df.groupby("Segment")["Sales"]
+        .sum()
+        .reset_index()
+    )
 
-    fig = px.pie(seg, names="Segment", values="Sales", hole=0.5)
+    fig = px.pie(
+        seg,
+        names="Segment",
+        values="Sales",
+        hole=0.5
+    )
+
+    fig.update_layout(height=250)
+
     st.plotly_chart(fig, use_container_width=True)
 
-# ROW 3: TOP PRODUCTS + SCATTER 
+# ROW 3
+
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Top 10 Products")
 
-    top = df.groupby("Product Name")["Sales"].sum().nlargest(10).reset_index()
+    top = (
+        df.groupby("Product Name")["Sales"]
+        .sum()
+        .nlargest(10)
+        .reset_index()
+    )
 
-    fig = px.bar(top, x="Sales", y="Product Name", orientation="h")
+    fig = px.bar(
+        top,
+        x="Sales",
+        y="Product Name",
+        orientation="h"
+    )
+
+    fig.update_layout(height=250)
+
     st.plotly_chart(fig, use_container_width=True)
 
 with col2:
     st.subheader("Profit vs Sales")
 
-    fig = px.scatter(df, x="Sales", y="Profit", color="Category")
+    fig = px.scatter(
+        df,
+        x="Sales",
+        y="Profit",
+        color="Category"
+    )
+
+    fig.update_layout(height=250)
+
     st.plotly_chart(fig, use_container_width=True)
 
-# FORECASTING 
+# FORECAST + INSIGHTS
+
 st.divider()
-st.subheader("Sales Forecast (Next 6 Months)")
 
-monthly = df.groupby(df["Order Date"].dt.to_period("M"))["Sales"].sum().reset_index()
-monthly["Order Date"] = monthly["Order Date"].astype(str)
-monthly["Time"] = np.arange(len(monthly))
+col1, col2 = st.columns([2, 1])
 
-X = monthly[["Time"]]
-y = monthly["Sales"]
+with col1:
 
-model = LinearRegression()
-model.fit(X, y)
+    st.subheader("Sales Forecast (Next 6 Months)")
 
-future = 6
-future_time = np.arange(len(monthly), len(monthly) + future).reshape(-1, 1)
-future_pred = model.predict(future_time)
+    monthly = (
+        df.groupby(df["Order Date"].dt.to_period("M"))["Sales"]
+        .sum()
+        .reset_index()
+    )
 
-future_dates = pd.date_range(
-    start=pd.to_datetime(monthly["Order Date"]).max(),
-    periods=future + 1,
-    freq="ME"
-)[1:]
+    monthly["Order Date"] = monthly["Order Date"].astype(str)
 
-forecast_df = pd.DataFrame({
-    "Order Date": future_dates,
-    "Sales": future_pred
-})
+    monthly["Time"] = np.arange(len(monthly))
 
-fig = px.line(monthly, x="Order Date", y="Sales")
-fig.add_scatter(x=forecast_df["Order Date"], y=forecast_df["Sales"], mode="lines", name="Forecast")
+    X = monthly[["Time"]]
+    y = monthly["Sales"]
 
-st.plotly_chart(fig, use_container_width=True)
+    model = LinearRegression()
+    model.fit(X, y)
 
-# BUSINESS INSIGHT
-st.subheader("Business Insight")
+    future = 6
 
-st.write("""
+    future_time = np.arange(
+        len(monthly),
+        len(monthly) + future
+    ).reshape(-1, 1)
+
+    future_pred = model.predict(future_time)
+
+    future_dates = pd.date_range(
+        start=pd.to_datetime(monthly["Order Date"]).max(),
+        periods=future + 1,
+        freq="ME"
+    )[1:]
+
+    forecast_df = pd.DataFrame({
+        "Order Date": future_dates,
+        "Sales": future_pred
+    })
+
+    fig = px.line(
+        monthly,
+        x="Order Date",
+        y="Sales"
+    )
+
+    fig.add_scatter(
+        x=forecast_df["Order Date"],
+        y=forecast_df["Sales"],
+        mode="lines",
+        name="Forecast"
+    )
+
+    fig.update_layout(height=300)
+
+    st.plotly_chart(fig, use_container_width=True)
+
+with col2:
+
+    st.subheader("Business Insights")
+
+    best_category = cat.loc[
+        cat["Profit"].idxmax(),
+        "Category"
+    ]
+
+    best_region = reg.loc[
+        reg["Sales"].idxmax(),
+        "Region"
+    ]
+
+    st.write("""
 This dashboard helps a business understand:
 - Sales performance over time
 - Most profitable categories
@@ -164,3 +303,6 @@ This can be used for:
 - Marketing strategy
 - Revenue forecasting
 """)
+
+
+
